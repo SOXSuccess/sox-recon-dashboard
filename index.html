@@ -1,0 +1,309 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>FY26 SOX Control Reconciliation Dashboard — Discrepancies</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<style>
+  :root{
+    --bg:#0b0e14; --panel:#141924; --panel2:#1b2130; --border:#2a3140;
+    --text:#e8ecf3; --muted:#9aa5b8; --accent:#4f8cff; --green:#33c481;
+    --amber:#f5a623; --red:#ef5b5b; --purple:#a682ff;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0; font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;
+    background:radial-gradient(1200px 600px at 10% -10%, #1a2233 0%, var(--bg) 55%);
+    color:var(--text); min-height:100vh;
+  }
+  header{ padding:28px 36px 12px; }
+  header h1{ margin:0 0 4px; font-size:26px; font-weight:700; letter-spacing:-.02em;}
+  header p{ margin:0; color:var(--muted); font-size:14px;}
+  .container{ padding:8px 36px 60px; max-width:1500px; margin:0 auto; }
+
+  .summary-grid{
+    display:grid; grid-template-columns:repeat(auto-fit,minmax(260px,1fr));
+    gap:16px; margin:20px 0 30px;
+  }
+  .card{
+    background:linear-gradient(180deg,var(--panel),var(--panel2));
+    border:1px solid var(--border); border-radius:14px; padding:20px;
+    cursor:pointer; transition:transform .15s ease, border-color .15s ease;
+  }
+  .card:hover{ transform:translateY(-3px); border-color:var(--accent); }
+  .card.active{ border-color:var(--accent); box-shadow:0 0 0 1px var(--accent) inset; }
+  .card h3{ margin:0 0 10px; font-size:14px; color:var(--muted); font-weight:600; text-transform:uppercase; letter-spacing:.04em;}
+  .card .big{ font-size:34px; font-weight:800; letter-spacing:-.02em; }
+  .card .rate{ font-size:13px; color:var(--muted); margin-top:2px; }
+  .bar{ height:8px; border-radius:6px; background:#232b3a; margin-top:14px; overflow:hidden; display:flex;}
+  .bar span{ height:100%; display:block; }
+  .legend{ display:flex; gap:14px; margin-top:10px; font-size:12px; color:var(--muted);}
+  .legend .dot{ width:8px; height:8px; border-radius:50%; display:inline-block; margin-right:5px;}
+
+  .detail{
+    background:linear-gradient(180deg,var(--panel),var(--panel2));
+    border:1px solid var(--border); border-radius:14px; padding:24px; margin-top:10px;
+  }
+  .detail h2{ margin:0 0 4px; font-size:18px; }
+  .detail .sub{ color:var(--muted); font-size:13px; margin-bottom:14px;}
+  .cols{ display:grid; grid-template-columns:1fr 1fr; gap:18px; }
+  @media (max-width:900px){ .cols{grid-template-columns:1fr;} }
+  .col h4{
+    font-size:12px; text-transform:uppercase; letter-spacing:.05em; color:var(--muted);
+    margin:0 0 10px; display:flex; justify-content:space-between; align-items:center;
+  }
+  .col h4 .count{
+    background:#232b3a; padding:2px 9px; border-radius:20px; font-weight:700; color:var(--text);
+  }
+  .col.gap1 h4 .count{ color:var(--amber); }
+  .col.gap2 h4 .count{ color:var(--red); }
+
+  table.varlist{
+    width:100%; border-collapse:collapse; font-size:12.5px;
+    border:1px solid var(--border); border-radius:10px; overflow:hidden;
+    background:#0f1420;
+  }
+  table.varlist thead th{
+    text-align:left; padding:8px 10px; background:#1b2233; color:var(--muted);
+    font-weight:600; font-size:11px; text-transform:uppercase; letter-spacing:.03em;
+    position:sticky; top:0;
+  }
+  table.varlist td{
+    padding:7px 10px; border-bottom:1px solid #1b2130; vertical-align:top; color:#c7cede;
+  }
+  table.varlist td.uid{
+    font-family:'SF Mono',Menlo,Consolas,monospace; white-space:nowrap; color:#e8ecf3; font-weight:600;
+  }
+  table.varlist td.reason{ color:#a9b3c4; line-height:1.4; }
+  table.varlist tr:hover td{ background:#171e2c; }
+  table.varlist tr:last-child td{ border-bottom:none; }
+  .table-wrap{ max-height:440px; overflow-y:auto; border-radius:10px; border:1px solid var(--border); }
+  .table-wrap table.varlist{ border:none; border-radius:0; }
+  .empty{ padding:16px; text-align:center; color:var(--muted); font-size:12.5px; background:#0f1420; border-radius:10px; border:1px solid var(--border);}
+  .search{
+    width:100%; margin-bottom:10px; padding:8px 10px; border-radius:8px;
+    border:1px solid var(--border); background:#0f1420; color:var(--text); font-size:12.5px;
+  }
+  .search:focus{ outline:none; border-color:var(--accent); }
+  footer{ text-align:center; color:var(--muted); font-size:12px; padding:20px; }
+  .badge{
+    display:inline-block; padding:2px 8px; border-radius:20px; font-size:11px; font-weight:700;
+    margin-left:8px;
+  }
+  .dup-box{
+    background:#0f1420; border:1px solid var(--border); border-radius:10px; padding:14px 16px;
+    margin:14px 0 18px;
+  }
+  .dup-box h4{ margin:0 0 10px; font-size:12px; text-transform:uppercase; letter-spacing:.05em; color:var(--purple); }
+  .dup-box table{ width:100%; border-collapse:collapse; font-size:12.5px; }
+  .dup-box td, .dup-box th{ padding:6px 8px; text-align:left; border-bottom:1px solid #1b2130; }
+  .dup-box th{ color:var(--muted); font-weight:600; text-transform:uppercase; font-size:11px; }
+  .dup-box td.uid{ font-family:'SF Mono',Menlo,Consolas,monospace; color:#e8ecf3; font-weight:600; white-space:nowrap;}
+  .matched-note{
+    font-size:12.5px; color:var(--green); background:rgba(51,196,129,.08);
+    border:1px solid rgba(51,196,129,.3); border-radius:8px; padding:8px 12px; margin-bottom:16px;
+  }
+</style>
+</head>
+<body>
+<header>
+  <h1>FY26 SOX Control Reconciliation Dashboard</h1>
+  <p>Discrepancy view — matched controls are hidden by design; only variances between AuditBoard, EY (BP&ITAC / ITGC), PwC, and Internal Audit listings are shown, with root-cause explanations</p>
+</header>
+
+<div class="container">
+  <div class="summary-grid" id="summaryGrid"></div>
+  <div class="detail" id="detailPanel"></div>
+</div>
+
+<footer>SOX PMO • Control ID Reconciliation • Data sourced from AuditBoard export, EY calendars, PwC listing, IA listing • Source files are never modified</footer>
+
+<script>
+const CONFIG = [
+  {
+    key: "ab_vs_ey_bp",
+    title: "AuditBoard vs EY (BP&ITAC)",
+    sourceLabel: "EY BP&ITAC Calendar (excl. strikethrough controls)",
+    targetLabel: "AuditBoard (Cycle = BP + SOC + ELC, In Scope Ext. Auditor = Yes/LRA-EY Tested, excl. KR Key Reports)",
+    gap1Label: "In EY listing, missing in AuditBoard",
+    gap2Label: "In AuditBoard, missing in EY listing",
+    gap1Key: "only_ey",
+    gap2Key: "only_ab",
+    color: "#4f8cff",
+    pctNote: "% = Matched / EY listing controls"
+  },
+  {
+    key: "ab_vs_ey_itgc",
+    title: "AuditBoard vs EY (ITGC)",
+    sourceLabel: "EY ITGC Calendar (deduplicated, excl. strikethrough controls)",
+    targetLabel: "AuditBoard (Cycle = ITGC + SOC, In Scope Ext. Auditor = Yes/LRA-EY Tested, excl. KR Key Reports)",
+    gap1Label: "In EY listing, missing in AuditBoard",
+    gap2Label: "In AuditBoard, missing in EY listing",
+    gap1Key: "only_ey",
+    gap2Key: "only_ab",
+    color: "#a682ff",
+    pctNote: "% = Matched / EY listing controls",
+    showDuplicates: true
+  },
+  {
+    key: "ab_vs_pwc",
+    title: "AuditBoard (PwC-tagged) vs PwC Listing",
+    sourceLabel: "AuditBoard (Responsible for Testing = PwC)",
+    targetLabel: "PwC Key Control Listing (excl. 'X' placeholder row)",
+    gap1Label: "In AuditBoard, missing in PwC listing",
+    gap2Label: "In PwC listing, missing in AuditBoard",
+    gap1Key: "only_ab",
+    gap2Key: "only_pwc",
+    color: "#33c481"
+  },
+  {
+    key: "ab_vs_ia",
+    title: "AuditBoard (IA-tagged) vs IA Listing",
+    sourceLabel: "AuditBoard (Responsible for Testing = IA)",
+    targetLabel: "IA Testing Controls Listing",
+    gap1Label: "In AuditBoard, missing in IA listing",
+    gap2Label: "In IA listing, missing in AuditBoard",
+    gap1Key: "only_ab",
+    gap2Key: "only_ia",
+    color: "#f5a623"
+  }
+];
+
+let DATA = null;
+let activeKey = CONFIG[0].key;
+
+function computeTotals(cfg, d) {
+  const gap1 = d[cfg.gap1Key].length;
+  const gap2 = d[cfg.gap2Key].length;
+  const matched = d.matched_count || 0;
+  const universe = matched + gap1 + gap2;
+  let rate;
+  if (typeof d.pct_matched_over_ey === "number") {
+    rate = d.pct_matched_over_ey.toFixed(1);
+  } else {
+    rate = universe ? ((matched / universe) * 100).toFixed(1) : "0.0";
+  }
+  return { matched, gap1, gap2, universe, rate };
+}
+
+function renderSummary() {
+  const grid = document.getElementById("summaryGrid");
+  grid.innerHTML = "";
+  CONFIG.forEach(cfg => {
+    const d = DATA[cfg.key];
+    const t = computeTotals(cfg, d);
+    const card = document.createElement("div");
+    card.className = "card" + (cfg.key === activeKey ? " active" : "");
+    card.onclick = () => { activeKey = cfg.key; renderSummary(); renderDetail(); };
+    const pctMatched = t.universe ? (t.matched / t.universe * 100) : 0;
+    const pctGap1 = t.universe ? (t.gap1 / t.universe * 100) : 0;
+    const pctGap2 = t.universe ? (t.gap2 / t.universe * 100) : 0;
+    card.innerHTML = `
+      <h3>${cfg.title}</h3>
+      <div class="big">${t.rate}%</div>
+      <div class="rate">${t.matched} matched (hidden) / ${t.gap1 + t.gap2} discrepancies${cfg.pctNote ? ` &middot; <em>${cfg.pctNote}</em>` : ""}</div>
+      <div class="bar">
+        <span style="width:${pctMatched}%; background:var(--green);"></span>
+        <span style="width:${pctGap1}%; background:var(--amber);"></span>
+        <span style="width:${pctGap2}%; background:var(--red);"></span>
+      </div>
+      <div class="legend">
+        <span><span class="dot" style="background:var(--green);"></span>Matched (${t.matched})</span>
+        <span><span class="dot" style="background:var(--amber);"></span>Gap A (${t.gap1})</span>
+        <span><span class="dot" style="background:var(--red);"></span>Gap B (${t.gap2})</span>
+      </div>
+    `;
+    grid.appendChild(card);
+  });
+}
+
+function makeTable(id, items) {
+  if (!items.length) return `<div class="empty" id="${id}">No discrepancies — fully reconciled ✓</div>`;
+  const rows = items.map(([uid, reason]) => `
+    <tr>
+      <td class="uid">${escapeHtml(uid)}</td>
+      <td class="reason">${escapeHtml(reason)}</td>
+    </tr>
+  `).join("");
+  return `
+    <div class="table-wrap">
+      <table class="varlist" id="${id}">
+        <thead><tr><th style="width:220px;">Control ID</th><th>Explanation</th></tr></thead>
+        <tbody>${rows}</tbody>
+      </table>
+    </div>
+  `;
+}
+
+function escapeHtml(s) {
+  return String(s)
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;");
+}
+
+function makeDuplicateBox(dupList) {
+  if (!dupList || !dupList.length) return "";
+  const rows = dupList.map(d => `
+    <tr>
+      <td class="uid">${escapeHtml(d.uid)}</td>
+      <td>${d.areas.map(a => escapeHtml(a)).join("<br>")}</td>
+    </tr>
+  `).join("");
+  return `
+    <div class="dup-box">
+      <h4>⚠ Duplicate Control UIDs in EY ITGC Calendar (counted once each; listed here for reference — source file unmodified)</h4>
+      <table>
+        <thead><tr><th style="width:280px;">Control UID</th><th>Area (Column B) — duplicated across rows</th></tr></thead>
+        <tbody>${rows}</tbody>
+      </table>
+    </div>
+  `;
+}
+
+function renderDetail() {
+  const cfg = CONFIG.find(c => c.key === activeKey);
+  const d = DATA[cfg.key];
+  const t = computeTotals(cfg, d);
+  const panel = document.getElementById("detailPanel");
+
+  const dupBox = cfg.showDuplicates ? makeDuplicateBox(d.duplicate_controls) : "";
+
+  panel.innerHTML = `
+    <h2>${cfg.title} <span class="badge" style="background:${cfg.color}22; color:${cfg.color};">${t.rate}% reconciled</span></h2>
+    <div class="sub">${cfg.sourceLabel} (${d.source_count} listed) &nbsp;vs&nbsp; ${cfg.targetLabel} (${d.target_count} listed)</div>
+    <div class="matched-note">✓ ${t.matched} matched controls are hidden from this view — showing only the ${t.gap1 + t.gap2} discrepancies below.</div>
+    ${dupBox}
+    <div class="cols">
+      <div class="col gap1">
+        <h4>${cfg.gap1Label} <span class="count">${t.gap1}</span></h4>
+        <input class="search" placeholder="Filter..." oninput="filterTable(this,'list-gap1')">
+        ${makeTable('list-gap1', d[cfg.gap1Key])}
+      </div>
+      <div class="col gap2">
+        <h4>${cfg.gap2Label} <span class="count">${t.gap2}</span></h4>
+        <input class="search" placeholder="Filter..." oninput="filterTable(this,'list-gap2')">
+        ${makeTable('list-gap2', d[cfg.gap2Key])}
+      </div>
+    </div>
+  `;
+}
+
+function filterTable(input, tableId) {
+  const q = input.value.trim().toUpperCase();
+  const table = document.getElementById(tableId);
+  if (!table || table.tagName !== "TABLE") return;
+  const tbody = table.querySelector("tbody");
+  if (!tbody) return;
+  Array.from(tbody.rows).forEach(row => {
+    row.style.display = row.textContent.toUpperCase().includes(q) ? "" : "none";
+  });
+}
+
+const EMBEDDED_DATA = {"generated": "2026-07-16 (rev8 - gaps-only dashboard with variance explanations)", "ab_vs_ey_bp": {"source_count": 298, "target_count": 304, "matched_count": 280, "only_ey": [["AMR.OB.AM04.12(OMS)", "Control UID not found anywhere in AuditBoard export \u2014 likely a naming/ID discrepancy or control not yet created in AuditBoard."], ["AMR.TAXP.03.02A", "Control UID not found anywhere in AuditBoard export \u2014 likely a naming/ID discrepancy or control not yet created in AuditBoard."], ["AMR.TAXP.03.02B", "Control UID not found anywhere in AuditBoard export \u2014 likely a naming/ID discrepancy or control not yet created in AuditBoard."], ["AMR.TAXP.03.02C", "Control UID not found anywhere in AuditBoard export \u2014 likely a naming/ID discrepancy or control not yet created in AuditBoard."], ["CRA.05.01A", "Control UID not found anywhere in AuditBoard export \u2014 likely a naming/ID discrepancy or control not yet created in AuditBoard."], ["GBL.CJ.09.01C(POSTFXTOOL)", "Control UID not found anywhere in AuditBoard export \u2014 likely a naming/ID discrepancy or control not yet created in AuditBoard."], ["GBL.CRA.04.01", "exists in AuditBoard but tagged \"LRA\" in column \"In Scope Ext. Auditor\" (expected Yes/LRA - EY Tested)"], ["GBL.CRA.05.01", "exists in AuditBoard but tagged \"LRA\" in column \"In Scope Ext. Auditor\" (expected Yes/LRA - EY Tested)"], ["GBL.CRA.07.07", "exists in AuditBoard but tagged \"LRA\" in column \"In Scope Ext. Auditor\" (expected Yes/LRA - EY Tested)"], ["GBL.EAPP.02.03", "Control UID not found anywhere in AuditBoard export \u2014 likely a naming/ID discrepancy or control not yet created in AuditBoard."], ["GBL.EAPP.07.24", "exists in AuditBoard but tagged \"TBD\" in column \"In Scope Ext. Auditor\" (expected Yes/LRA - EY Tested)"], ["GBL.EAPP.07.25", "exists in AuditBoard but tagged \"TBD\" in column \"In Scope Ext. Auditor\" (expected Yes/LRA - EY Tested)"], ["GBL.EAPP.07.26", "exists in AuditBoard but tagged \"TBD\" in column \"In Scope Ext. Auditor\" (expected Yes/LRA - EY Tested)"], ["GBL.EAPP.07.28", "exists in AuditBoard but tagged \"TBD\" in column \"In Scope Ext. Auditor\" (expected Yes/LRA - EY Tested)"], ["GBL.EAPP.07.29", "exists in AuditBoard but tagged \"TBD\" in column \"In Scope Ext. Auditor\" (expected Yes/LRA - EY Tested)"], ["GBL.EAPP.08.28", "exists in AuditBoard but tagged \"TBD\" in column \"In Scope Ext. Auditor\" (expected Yes/LRA - EY Tested)"], ["GBL.EAPP.08.29", "exists in AuditBoard but tagged \"TBD\" in column \"In Scope Ext. Auditor\" (expected Yes/LRA - EY Tested)"], ["GBL.SGAAP.00.02", "exists in AuditBoard but tagged \"No\" in column \"In Scope Ext. Auditor\" (expected Yes/LRA - EY Tested)"]], "only_ab": [["AMR.PAY.08.03", "Present in AuditBoard comparison universe (meets cycle + scope criteria) but no corresponding entry found in EY listing \u2014 possible EY listing omission or control retired by EY without corresponding AuditBoard update."], ["AMR.TAXP.03.02", "Present in AuditBoard comparison universe (meets cycle + scope criteria) but no corresponding entry found in EY listing \u2014 possible EY listing omission or control retired by EY without corresponding AuditBoard update."], ["CORP.ELC.ELC.CE02", "Present in AuditBoard comparison universe (meets cycle + scope criteria) but no corresponding entry found in EY listing \u2014 possible EY listing omission or control retired by EY without corresponding AuditBoard update."], ["GBL.CJ.01.10", "Present in AuditBoard comparison universe (meets cycle + scope criteria) but no corresponding entry found in EY listing \u2014 possible EY listing omission or control retired by EY without corresponding AuditBoard update."], ["GBL.CJ.01.12", "Present in AuditBoard comparison universe (meets cycle + scope criteria) but no corresponding entry found in EY listing \u2014 possible EY listing omission or control retired by EY without corresponding AuditBoard update."], ["GBL.CJ.09.01", "Present in AuditBoard comparison universe (meets cycle + scope criteria) but no corresponding entry found in EY listing \u2014 possible EY listing omission or control retired by EY without corresponding AuditBoard update."], ["GBL.EAPP.02.03-PD2", "Present in AuditBoard comparison universe (meets cycle + scope criteria) but no corresponding entry found in EY listing \u2014 possible EY listing omission or control retired by EY without corresponding AuditBoard update."], ["GBL.EAPP.07.31", "Present in AuditBoard comparison universe (meets cycle + scope criteria) but no corresponding entry found in EY listing \u2014 possible EY listing omission or control retired by EY without corresponding AuditBoard update."], ["GBL.EAPP.07.32", "Present in AuditBoard comparison universe (meets cycle + scope criteria) but no corresponding entry found in EY listing \u2014 possible EY listing omission or control retired by EY without corresponding AuditBoard update."], ["GBL.IP.02.10", "Present in AuditBoard comparison universe (meets cycle + scope criteria) but no corresponding entry found in EY listing \u2014 possible EY listing omission or control retired by EY without corresponding AuditBoard update."], ["GBL.IP.03.01", "Present in AuditBoard comparison universe (meets cycle + scope criteria) but no corresponding entry found in EY listing \u2014 possible EY listing omission or control retired by EY without corresponding AuditBoard update."], ["GBL.SGAAP.01.01A", "Present in AuditBoard comparison universe (meets cycle + scope criteria) but no corresponding entry found in EY listing \u2014 possible EY listing omission or control retired by EY without corresponding AuditBoard update."], ["SOC.GBL.ITGC.AWS.01", "Present in AuditBoard comparison universe (meets cycle + scope criteria) but no corresponding entry found in EY listing \u2014 possible EY listing omission or control retired by EY without corresponding AuditBoard update."], ["SOC.GBL.ITGC.SNOW.01", "Present in AuditBoard comparison universe (meets cycle + scope criteria) but no corresponding entry found in EY listing \u2014 possible EY listing omission or control retired by EY without corresponding AuditBoard update."], ["SOC.GBL.ITGC.SNOW.02", "Present in AuditBoard comparison universe (meets cycle + scope criteria) but no corresponding entry found in EY listing \u2014 possible EY listing omission or control retired by EY without corresponding AuditBoard update."]], "pct_matched_over_ey": 94.0}, "ab_vs_ey_itgc": {"source_count": 190, "target_count": 179, "matched_count": 166, "only_ey": [["GBL.ACI.ITGC.TM.ACI01", "exists in AuditBoard but tagged \"No\" in column \"In Scope Ext. Auditor\" (expected Yes/LRA - EY Tested)"], ["GBL.AMP.ITGC.AM.AMP02-MZADMIN", "Control UID not found anywhere in AuditBoard export \u2014 likely a naming/ID discrepancy or control not yet created in AuditBoard."], ["GBL.AMP.ITGC.AM.AMP02-MZSUPPORTWORKFLOWS", "Control UID not found anywhere in AuditBoard export \u2014 likely a naming/ID discrepancy or control not yet created in AuditBoard."], ["GBL.AMP.ITGC.AM.AMP02-PHOTON(PRICINGUI)", "Control UID not found anywhere in AuditBoard export \u2014 likely a naming/ID discrepancy or control not yet created in AuditBoard."], ["GBL.AMP.ITGC.AM.AMP04-CONFLUENCE/COMPASS", "Control UID not found anywhere in AuditBoard export \u2014 likely a naming/ID discrepancy or control not yet created in AuditBoard."], ["GBL.AMP.ITGC.TM.AMP01-KAFKA", "Control UID not found anywhere in AuditBoard export \u2014 likely a naming/ID discrepancy or control not yet created in AuditBoard."], ["GBL.AMP.ITGC.TM.AMP03-KAFKA", "Control UID not found anywhere in AuditBoard export \u2014 likely a naming/ID discrepancy or control not yet created in AuditBoard."], ["GBL.IST.ITGC.AM.IST02-DATAIKU", "Control UID not found anywhere in AuditBoard export \u2014 likely a naming/ID discrepancy or control not yet created in AuditBoard."], ["GBL.IST.ITGC.AM.IST05-COUCHBASE", "Control UID not found anywhere in AuditBoard export \u2014 likely a naming/ID discrepancy or control not yet created in AuditBoard."], ["GBL.IST.ITGC.AM.IST06-DATAIKU", "Control UID not found anywhere in AuditBoard export \u2014 likely a naming/ID discrepancy or control not yet created in AuditBoard."], ["GBL.IST.ITGC.AM.IST08-DATAIKU", "Control UID not found anywhere in AuditBoard export \u2014 likely a naming/ID discrepancy or control not yet created in AuditBoard."], ["GBL.IST.ITGC.AM.IST08-WORKDAY", "Control UID not found anywhere in AuditBoard export \u2014 likely a naming/ID discrepancy or control not yet created in AuditBoard."], ["GBL.IST.ITGC.CM.IST05-TRIRIGA", "exists in AuditBoard but tagged \"No\" in column \"In Scope Ext. Auditor\" (expected Yes/LRA - EY Tested)"], ["GBL.IST.ITGC.CM.IST09-TRIRIGA", "Control UID not found anywhere in AuditBoard export \u2014 likely a naming/ID discrepancy or control not yet created in AuditBoard."], ["GBL.IST.ITGC.CM.IST12-POS", "Control UID not found anywhere in AuditBoard export \u2014 likely a naming/ID discrepancy or control not yet created in AuditBoard."], ["GBL.IST.ITGC.CM.IST14-ARIBA", "exists in AuditBoard but tagged \"TBD\" in column \"In Scope Ext. Auditor\" (expected Yes/LRA - EY Tested)"], ["GBL.IST.ITGC.DB.IST01-COUCHBASE", "exists in AuditBoard with Significance = \"Archived\""], ["GBL.IST.ITGC.DB.IST02-COUCHBASE", "exists in AuditBoard with Significance = \"Archived\""], ["GBL.IST.ITGC.OP.IST01-AUTOMATED-STRATOS", "exists in AuditBoard but tagged \"No\" in column \"In Scope Ext. Auditor\" (expected Yes/LRA - EY Tested)"], ["GBL.IST.ITGC.OS.IST09-DATAIKU", "Control UID not found anywhere in AuditBoard export \u2014 likely a naming/ID discrepancy or control not yet created in AuditBoard."], ["GBL.IST.ITGC.OS.IST09-WORKDAY", "Control UID not found anywhere in AuditBoard export \u2014 likely a naming/ID discrepancy or control not yet created in AuditBoard."], ["GBL.IST.ITGC.SAP.IST09", "exists in AuditBoard but tagged \"No\" in column \"In Scope Ext. Auditor\" (expected Yes/LRA - EY Tested)"], ["GBL.IST.ITGC.SAP.IST15", "exists in AuditBoard but tagged \"No\" in column \"In Scope Ext. Auditor\" (expected Yes/LRA - EY Tested)"], ["SOC.GBL.ITGC.ARIBA.01", "exists in AuditBoard but tagged \"TBD\" in column \"In Scope Ext. Auditor\" (expected Yes/LRA - EY Tested)"]], "only_ab": [["GBL.ACI.ITGC.DB.ACI01-CASSANDRA", "Present in AuditBoard comparison universe (meets cycle + scope criteria) but no corresponding entry found in EY listing \u2014 possible EY listing omission or control retired by EY without corresponding AuditBoard update."], ["GBL.ACI.ITGC.DB.ACI02-CASSANDRA", "Present in AuditBoard comparison universe (meets cycle + scope criteria) but no corresponding entry found in EY listing \u2014 possible EY listing omission or control retired by EY without corresponding AuditBoard update."], ["GBL.ACI.ITGC.DB.ACI03-CASSANDRA", "Present in AuditBoard comparison universe (meets cycle + scope criteria) but no corresponding entry found in EY listing \u2014 possible EY listing omission or control retired by EY without corresponding AuditBoard update."], ["GBL.ACI.ITGC.OS.ACI01-CASSANDRA", "Present in AuditBoard comparison universe (meets cycle + scope criteria) but no corresponding entry found in EY listing \u2014 possible EY listing omission or control retired by EY without corresponding AuditBoard update."], ["GBL.ACI.ITGC.OS.ACI02-CASSANDRA", "Present in AuditBoard comparison universe (meets cycle + scope criteria) but no corresponding entry found in EY listing \u2014 possible EY listing omission or control retired by EY without corresponding AuditBoard update."], ["GBL.AMP.ITGC.DB.AMP05", "Present in AuditBoard comparison universe (meets cycle + scope criteria) but no corresponding entry found in EY listing \u2014 possible EY listing omission or control retired by EY without corresponding AuditBoard update."], ["GBL.IST.ITGC.AM.IST03-TRIRIGA", "Present in AuditBoard comparison universe (meets cycle + scope criteria) but no corresponding entry found in EY listing \u2014 possible EY listing omission or control retired by EY without corresponding AuditBoard update."], ["GBL.IST.ITGC.AM.IST04-BODS", "Present in AuditBoard comparison universe (meets cycle + scope criteria) but no corresponding entry found in EY listing \u2014 possible EY listing omission or control retired by EY without corresponding AuditBoard update."], ["GBL.IST.ITGC.AM.IST05", "Present in AuditBoard comparison universe (meets cycle + scope criteria) but no corresponding entry found in EY listing \u2014 possible EY listing omission or control retired by EY without corresponding AuditBoard update."], ["GBL.IST.ITGC.AM.IST06-GCSPUPPET", "Present in AuditBoard comparison universe (meets cycle + scope criteria) but no corresponding entry found in EY listing \u2014 possible EY listing omission or control retired by EY without corresponding AuditBoard update."], ["GBL.IST.ITGC.AM.IST06-ISCPUPPET", "Present in AuditBoard comparison universe (meets cycle + scope criteria) but no corresponding entry found in EY listing \u2014 possible EY listing omission or control retired by EY without corresponding AuditBoard update."], ["GBL.IST.ITGC.DB.IST01", "Present in AuditBoard comparison universe (meets cycle + scope criteria) but no corresponding entry found in EY listing \u2014 possible EY listing omission or control retired by EY without corresponding AuditBoard update."], ["GBL.IST.ITGC.DB.IST02", "Present in AuditBoard comparison universe (meets cycle + scope criteria) but no corresponding entry found in EY listing \u2014 possible EY listing omission or control retired by EY without corresponding AuditBoard update."], ["GBL.IST.ITGC.DB.IST05", "Present in AuditBoard comparison universe (meets cycle + scope criteria) but no corresponding entry found in EY listing \u2014 possible EY listing omission or control retired by EY without corresponding AuditBoard update."], ["GBL.IST.ITGC.DB.IST08", "Present in AuditBoard comparison universe (meets cycle + scope criteria) but no corresponding entry found in EY listing \u2014 possible EY listing omission or control retired by EY without corresponding AuditBoard update."], ["GBL.IST.ITGC.DB.IST10", "Present in AuditBoard comparison universe (meets cycle + scope criteria) but no corresponding entry found in EY listing \u2014 possible EY listing omission or control retired by EY without corresponding AuditBoard update."], ["GBL.IST.ITGC.DB.IST12", "Present in AuditBoard comparison universe (meets cycle + scope criteria) but no corresponding entry found in EY listing \u2014 possible EY listing omission or control retired by EY without corresponding AuditBoard update."], ["GBL.IST.ITGC.OS.IST02", "Present in AuditBoard comparison universe (meets cycle + scope criteria) but no corresponding entry found in EY listing \u2014 possible EY listing omission or control retired by EY without corresponding AuditBoard update."], ["GBL.IST.ITGC.OS.IST04", "Present in AuditBoard comparison universe (meets cycle + scope criteria) but no corresponding entry found in EY listing \u2014 possible EY listing omission or control retired by EY without corresponding AuditBoard update."], ["GBL.IST.ITGC.SAP.IST08-PY6", "Present in AuditBoard comparison universe (meets cycle + scope criteria) but no corresponding entry found in EY listing \u2014 possible EY listing omission or control retired by EY without corresponding AuditBoard update."], ["SOC.AMR.CJ.BL.01", "Present in AuditBoard comparison universe (meets cycle + scope criteria) but no corresponding entry found in EY listing \u2014 possible EY listing omission or control retired by EY without corresponding AuditBoard update."], ["SOC.AMR.PAY.ADP.02", "Present in AuditBoard comparison universe (meets cycle + scope criteria) but no corresponding entry found in EY listing \u2014 possible EY listing omission or control retired by EY without corresponding AuditBoard update."], ["SOC.AMR.PAY.ADP.04", "Present in AuditBoard comparison universe (meets cycle + scope criteria) but no corresponding entry found in EY listing \u2014 possible EY listing omission or control retired by EY without corresponding AuditBoard update."], ["SOC.AMR.PAY.WORKDAY.01", "Present in AuditBoard comparison universe (meets cycle + scope criteria) but no corresponding entry found in EY listing \u2014 possible EY listing omission or control retired by EY without corresponding AuditBoard update."], ["SOC.GBL.IH.BNYM.01", "Present in AuditBoard comparison universe (meets cycle + scope criteria) but no corresponding entry found in EY listing \u2014 possible EY listing omission or control retired by EY without corresponding AuditBoard update."], ["SOC.GBL.IH.BNYM.02", "Present in AuditBoard comparison universe (meets cycle + scope criteria) but no corresponding entry found in EY listing \u2014 possible EY listing omission or control retired by EY without corresponding AuditBoard update."], ["SOC.GBL.IH.CW.01", "Present in AuditBoard comparison universe (meets cycle + scope criteria) but no corresponding entry found in EY listing \u2014 possible EY listing omission or control retired by EY without corresponding AuditBoard update."], ["SOC.GBL.STOCK.CS.01A", "Present in AuditBoard comparison universe (meets cycle + scope criteria) but no corresponding entry found in EY listing \u2014 possible EY listing omission or control retired by EY without corresponding AuditBoard update."], ["SOC.GBL.STOCK.CS.01B", "Present in AuditBoard comparison universe (meets cycle + scope criteria) but no corresponding entry found in EY listing \u2014 possible EY listing omission or control retired by EY without corresponding AuditBoard update."], ["SOC.GBL.STOCK.ETCS.01", "Present in AuditBoard comparison universe (meets cycle + scope criteria) but no corresponding entry found in EY listing \u2014 possible EY listing omission or control retired by EY without corresponding AuditBoard update."]], "pct_matched_over_ey": 87.4, "duplicate_controls": [{"uid": "GBL.AMP.ITGC.CM.AMP01-Microservices", "areas": ["AMP Legacy", "AMP Pricing"]}, {"uid": "GBL.AMP.ITGC.CM.AMP02-Microservices", "areas": ["AMP Legacy", "AMP Pricing"]}, {"uid": "GBL.AMP.ITGC.CM.AMP06-Microservices", "areas": ["AMP Legacy", "AMP Pricing"]}, {"uid": "GBL.ACI.ITGC.TM.ACI02", "areas": ["AMP Tools Access - Annual controls (non-SAP tools/repos now owned by ASE)", "AMP Tools Access - Compass GitHub review"]}]}, "ab_vs_pwc": {"source_count": 496, "target_count": 498, "matched_count": 486, "only_ab": [["AMR.CC.04.06", "Tagged \"Responsible for Testing = PwC\" in AuditBoard but no matching entry found in PwC Key Control Listing."], ["GBL.EAPP.07.32", "Tagged \"Responsible for Testing = PwC\" in AuditBoard but no matching entry found in PwC Key Control Listing."], ["GBL.FDT.ITGC.AM.FDT02", "Tagged \"Responsible for Testing = PwC\" in AuditBoard but no matching entry found in PwC Key Control Listing."], ["GBL.FDT.ITGC.AM.FDT03", "Tagged \"Responsible for Testing = PwC\" in AuditBoard but no matching entry found in PwC Key Control Listing."], ["GBL.FDT.ITGC.AM.FDT04-IREQUEST", "Tagged \"Responsible for Testing = PwC\" in AuditBoard but no matching entry found in PwC Key Control Listing."], ["GBL.FDT.ITGC.CM.FDT05-IREQUEST", "Tagged \"Responsible for Testing = PwC\" in AuditBoard but no matching entry found in PwC Key Control Listing."], ["GBL.FDT.ITGC.DB.FDT01", "Tagged \"Responsible for Testing = PwC\" in AuditBoard but no matching entry found in PwC Key Control Listing."], ["GBL.FDT.ITGC.DB.FDT02", "Tagged \"Responsible for Testing = PwC\" in AuditBoard but no matching entry found in PwC Key Control Listing."], ["GBL.FDT.ITGC.DB.FDT05", "Tagged \"Responsible for Testing = PwC\" in AuditBoard but no matching entry found in PwC Key Control Listing."], ["GBL.FDT.ITGC.OS.FDT01", "Tagged \"Responsible for Testing = PwC\" in AuditBoard but no matching entry found in PwC Key Control Listing."]], "only_pwc": [["GBL.ADPL.ITGC.CM.ADPL04", "Listed in PwC Key Control Listing but Control UID not found in AuditBoard at all."], ["GBL.ADPL.ITGC.CM.ADPL05", "Listed in PwC Key Control Listing but Control UID not found in AuditBoard at all."], ["GBL.FPS.ITGC.AM.FPS02-AWS", "Exists in AuditBoard but \"Responsible for Testing\" is blank (expected PwC)."], ["GBL.FPS.ITGC.AM.FPS03-AWS", "Exists in AuditBoard but \"Responsible for Testing\" is blank (expected PwC)."], ["GBL.FPS.ITGC.AM.FPS04-IREQUEST", "Exists in AuditBoard but \"Responsible for Testing\" is blank (expected PwC)."], ["GBL.FPS.ITGC.CM.FPS05-IREQUEST", "Exists in AuditBoard but \"Responsible for Testing\" is blank (expected PwC)."], ["GBL.FPS.ITGC.DB.FPS01", "Exists in AuditBoard but \"Responsible for Testing\" is blank (expected PwC)."], ["GBL.FPS.ITGC.DB.FPS02", "Exists in AuditBoard but \"Responsible for Testing\" is blank (expected PwC)."], ["GBL.FPS.ITGC.DB.FPS05", "Exists in AuditBoard but \"Responsible for Testing\" is blank (expected PwC)."], ["GBL.FPS.ITGC.OS.FPS01-OPENPO", "Exists in AuditBoard but \"Responsible for Testing\" is blank (expected PwC)."], ["GBL.FR.12.05C", "Listed in PwC Key Control Listing but Control UID not found in AuditBoard at all."], ["GBL.IP.03.01", "Exists in AuditBoard but \"Responsible for Testing\" is blank (expected PwC)."]]}, "ab_vs_ia": {"source_count": 64, "target_count": 59, "matched_count": 59, "only_ab": [["GBL.IST.ITGC.DB.IST02-ORACLEDATABASES", "Tagged \"Responsible for Testing = IA\" in AuditBoard but no matching entry found in IA Testing Controls listing."], ["GBL.IST.ITGC.OP.IST01-AUTOMATED-AUTOSYS", "Tagged \"Responsible for Testing = IA\" in AuditBoard but no matching entry found in IA Testing Controls listing."], ["GBL.IST.ITGC.OP.IST01-AUTOMATED-KEYSTONE", "Tagged \"Responsible for Testing = IA\" in AuditBoard but no matching entry found in IA Testing Controls listing."], ["GBL.IST.ITGC.SAP.DB.IST02-HANA", "Tagged \"Responsible for Testing = IA\" in AuditBoard but no matching entry found in IA Testing Controls listing."], ["GBL.IST.ITGC.SAP.DB.IST02-ORACLE", "Tagged \"Responsible for Testing = IA\" in AuditBoard but no matching entry found in IA Testing Controls listing."]], "only_ia": []}};
+DATA = EMBEDDED_DATA;
+renderSummary();
+renderDetail();
+</script>
+</body>
+</html>
